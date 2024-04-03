@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flappy Bird</title>
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        font-family: Arial, sans-serif;
+        background-color: #70c5ce;
+    }
+    .container {
+        text-align: center;
+        margin-top: 50px;
+    }
+    .game-container {
+        position: relative;
+        width: 100%;
+        max-width: 500px;
+        margin: 0 auto;
+        background-color: #f9f9f9;
+        border: 2px solid #333;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    .score {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        font-size: 24px;
+        color: #333;
+    }
+    .gameover {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        padding: 20px;
+        background-color: rgba(255, 255, 255, 0.8);
+        border-radius: 10px;
+        display: none;
+    }
+    .gameover h2 {
+        margin-top: 0;
+        color: #333;
+    }
+    .buttons {
+        margin-top: 20px;
+    }
+    .btn {
+        padding: 10px 20px;
+        font-size: 18px;
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        cursor: pointer;
+        border-radius: 5px;
+        margin-right: 10px;
+    }
+    canvas {
+        display: block;
+        margin: 0 auto;
+        background-color: #70c5ce;
+    }
+</style>
+</head>
+<body>
+<div class="container">
+    <h1>Flappy Bird</h1>
+    <div id="startMenu">
+        <button class="btn" onclick="startGame()">Start Game</button>
+        <div id="shareButtons" style="display: none;">
+            <button class="btn" onclick="shareOnTwitter()">Share on Twitter</button>
+            <button class="btn" onclick="shareOnFacebook()">Share on Facebook</button>
+        </div>
+    </div>
+    <div class="game-container" id="gameContainer" style="display: none;">
+        <span class="score">Score: 0</span>
+        <canvas id="canvas" width="400" height="600"></canvas>
+        <div class="gameover" id="gameover">
+            <h2>Game Over!</h2>
+            <div class="buttons">
+                <button class="btn" onclick="restartGame()">Restart</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    const backgroundImg = new Image();
+    backgroundImg.src = 'https://wallpapercave.com/wp/wp6956942.png'; /* Your background image */
+
+    const birdImg = new Image();
+    birdImg.src = 'https://th.bing.com/th/id/R.36ec00336eda7007c75ad466f4c2fc23?rik=25xizTsEPaB7tg&pid=ImgRaw&r=0'; /* Your bird image */
+
+    const bird = {
+        x: 50,
+        y: canvas.height / 2,
+        width: 50,
+        height: 50,
+        velocity: 0,
+        gravity: 0.5,
+        jumpStrength: 10,
+        draw: function() {
+            ctx.drawImage(birdImg, this.x, this.y, this.width, this.height);
+        },
+        jump: function() {
+            this.velocity = -this.jumpStrength;
+        },
+        update: function() {
+            this.velocity += this.gravity;
+            this.y += this.velocity;
+        }
+    };
+
+    const pipes = {
+        gap: 200,
+        width: 60,
+        speed: 2,
+        pipesArray: [],
+        draw: function() {
+            this.pipesArray.forEach(pipe => {
+                ctx.fillStyle = '#4CAF50'; /* Pipe color */
+                ctx.fillRect(pipe.x, 0, this.width, pipe.topHeight);
+                ctx.fillRect(pipe.x, pipe.bottomY, this.width, canvas.height - pipe.bottomY);
+            });
+        },
+        update: function() {
+            if (frames % 100 === 0) {
+                const topHeight = Math.floor(Math.random() * 300) + 50;
+                this.pipesArray.push({
+                    x: canvas.width,
+                    topHeight: topHeight,
+                    bottomY: topHeight + this.gap
+                });
+            }
+
+            this.pipesArray.forEach(pipe => {
+                pipe.x -= this.speed;
+            });
+
+            if (this.pipesArray.length > 0 && this.pipesArray[0].x + this.width < 0) {
+                this.pipesArray.shift();
+            }
+        }
+    };
+
+    let frames = 0;
+    let score = 0;
+    let gameOver = false;
+    let gameStarted = false;
+    let animationId;
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(backgroundImg, 0, 0, canvas.width, canvas.height);
+        bird.draw();
+        pipes.draw();
+        ctx.fillStyle = '#333';
+        ctx.font = '24px Arial';
+        ctx.fillText(`Score: ${score}`, 20, 40);
+    }
+
+    function update() {
+        if (!gameStarted) return;
+        bird.update();
+        pipes.update();
+
+        if (bird.y + bird.height > canvas.height || bird.y < 0) {
+            endGame();
+        }
+
+        pipes.pipesArray.forEach(pipe => {
+            if (bird.x + bird.width > pipe.x && bird.x < pipe.x + pipes.width &&
+                (bird.y < pipe.topHeight || bird.y + bird.height > pipe.bottomY)) {
+                endGame();
+            }
+        });
+
+        if (pipes.pipesArray[0].x + pipes.width < bird.x) {
+            score++;
+            pipes.pipesArray.shift();
+        }
+
+        frames++;
+    }
+
+    function endGame() {
+        gameOver = true;
+        document.getElementById('gameover').style.display = 'block';
+        document.getElementById('shareButtons').style.display = 'block';
+    }
+
+    function restartGame() {
+        cancelAnimationFrame(animationId);
+        document.getElementById('gameover').style.display = 'none';
+        document.getElementById('shareButtons').style.display = 'none';
+        score = 0;
+        frames = 0;
+        bird.y = canvas.height / 2;
+        pipes.pipesArray = [];
+        gameOver = false;
+        gameStarted = false;
+        startGame();
+    }
+
+    function loop() {
+        if (!gameOver) {
+            update();
+            draw();
+            animationId = requestAnimationFrame(loop);
+        }
+    }
+
+    function startGame() {
+        document.getElementById('startMenu').style.display = 'none';
+        document.getElementById('gameContainer').style.display = 'block';
+        gameStarted = true;
+        loop();
+    }
+
+    function shareOnTwitter() {
+        const tweetUrl = `https://twitter.com/intent/tweet?text=I scored ${score} points in Flappy Bird! Try to beat my score!`;
+        window.open(tweetUrl, '_blank');
+    }
+
+    function shareOnFacebook() {
+        const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`;
+        window.open(fbUrl, '_blank');
+    }
+
+    document.addEventListener('keydown', function(event) {
+        if (event.code === 'Space' && !gameOver) {
+            bird.jump();
+        }
+    });
+
+    canvas.addEventListener('click', function() {
+        if (!gameOver) {
+            bird.jump();
+        }
+    });
+
+    canvas.addEventListener('touchstart', function() {
+        if (!gameOver) {
+            bird.jump();
+        }
+    });
+</script>
+</body>
+</html>
